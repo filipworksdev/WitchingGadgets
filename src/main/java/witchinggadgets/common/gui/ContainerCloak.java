@@ -33,10 +33,10 @@ public class ContainerCloak extends Container
 			try {
 				((InventoryCloak)this.input).stackList = ((ItemCloak)this.cloak.getItem()).getStoredItems(this.cloak);
 			}
-		catch (Exception e)
-		{
-			e.printStackTrace();
-		}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
 		this.onCraftMatrixChanged(this.input);
 	}
 

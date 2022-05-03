@@ -26,22 +26,15 @@ import net.minecraft.util.IIcon;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.world.World;
-import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
-import net.minecraftforge.event.entity.living.LivingFallEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import thaumcraft.api.IRepairable;
 import thaumcraft.api.aspects.Aspect;
-import travellersgear.api.IActiveAbility;
-import travellersgear.api.IEventGear;
 import witchinggadgets.api.IPrimordialCrafting;
 import witchinggadgets.common.WGContent;
 import witchinggadgets.common.util.Utilities;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ItemPrimordialHammer extends ItemPickaxe implements IPrimordialCrafting, IActiveAbility, IRepairable, IEventGear, IPrimordialGear
+public class ItemPrimordialHammer extends ItemPickaxe implements IPrimordialCrafting, IRepairable, IPrimordialGear
 {
 	IIcon overlay;
 	public static Material[] validMats = {Material.anvil,Material.clay,Material.craftedSnow,Material.glass,Material.grass,Material.ground,Material.ice,Material.iron,Material.packedIce,Material.piston,Material.rock,Material.sand,Material.snow};
@@ -138,32 +131,6 @@ public class ItemPrimordialHammer extends ItemPickaxe implements IPrimordialCraf
 			}
 		}
 		return false;
-	}
-	@Override
-	public void onUserDamaged(LivingHurtEvent event, ItemStack stack)
-	{
-		if(getAbility(stack)==1 && ((EntityPlayer)event.entityLiving).isBlocking())
-		{
-			int time = event.entityLiving.getActivePotionEffect(Potion.resistance)!=null?event.entityLiving.getActivePotionEffect(Potion.resistance).getDuration():0;
-			time = Math.min(time+30, 80);
-			int amp = event.entityLiving.getActivePotionEffect(Potion.resistance)!=null?event.entityLiving.getActivePotionEffect(Potion.resistance).getAmplifier():-1;
-			amp = Math.min(amp+1, 2);
-			event.entityLiving.addPotionEffect(new PotionEffect(Potion.resistance.id,time,amp));
-		}
-	}
-
-
-
-	@Override
-	public boolean canActivate(EntityPlayer player, ItemStack stack, boolean isInHand)
-	{
-		return true;
-	}
-	@Override
-	public void activate(EntityPlayer player, ItemStack stack)
-	{
-		if(!player.worldObj.isRemote)
-			cycleAbilities(stack);
 	}
 
 	@Override
@@ -286,37 +253,27 @@ public class ItemPrimordialHammer extends ItemPickaxe implements IPrimordialCraf
 	{
 		return EnumAction.block;
 	}
+
 	@Override
 	public int getMaxItemUseDuration(ItemStack stack)
 	{
 		return 72000;
 	}
+
 	@Override
 	public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player)
 	{
-		player.setItemInUse(stack, this.getMaxItemUseDuration(stack));
+		if (player.isSneaking() && !player.worldObj.isRemote)
+			cycleAbilities(stack);
+		else
+			player.setItemInUse(stack, this.getMaxItemUseDuration(stack));
+
 		return stack;
 	}
+
 	@Override
 	public boolean getIsRepairable(ItemStack stack1, ItemStack stack2)
 	{
 		return Utilities.compareToOreName(stack2, "ingotVoid");
-	}
-
-	@Override
-	public void onUserAttacking(AttackEntityEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserJump(LivingJumpEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserFall(LivingFallEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserTargeted(LivingSetAttackTargetEvent event, ItemStack stack)
-	{
 	}
 }

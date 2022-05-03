@@ -28,7 +28,7 @@ public class InventoryCloak implements IInventory
 	{
 		if(i >= this.getSizeInventory())return null;
 		return this.stackList[i];
-	}	
+	}
 
 	@Override
 	public ItemStack getStackInSlotOnClosing(int i)

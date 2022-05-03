@@ -2,47 +2,46 @@ package witchinggadgets.common.util.handler;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 
+import baubles.api.BaublesApi;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.EntityCreature;
-import net.minecraft.entity.EntityList;
-import net.minecraft.entity.EntityLiving;
-import net.minecraft.entity.EnumCreatureAttribute;
+import net.minecraft.entity.*;
 import net.minecraft.entity.boss.IBossDisplayData;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.item.EntityXPOrb;
-import net.minecraft.entity.monster.EntityBlaze;
-import net.minecraft.entity.monster.EntityCreeper;
-import net.minecraft.entity.monster.EntityEnderman;
-import net.minecraft.entity.monster.EntityPigZombie;
-import net.minecraft.entity.monster.EntitySkeleton;
-import net.minecraft.entity.monster.EntitySlime;
-import net.minecraft.entity.monster.EntityZombie;
+import net.minecraft.entity.monster.*;
 import net.minecraft.entity.passive.EntityWolf;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemArmor;
 import net.minecraft.item.ItemStack;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.DamageSource;
 import net.minecraft.util.Vec3;
+import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.minecraftforge.event.entity.player.EntityInteractEvent;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.player.*;
 import net.minecraftforge.oredict.OreDictionary;
+import thaumcraft.api.IGoggles;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
+import thaumcraft.api.nodes.IRevealer;
 import thaumcraft.common.entities.EntitySpecialItem;
 import thaumcraft.common.entities.monster.EntityCultistCleric;
 import thaumcraft.common.entities.monster.EntityCultistKnight;
@@ -52,15 +51,18 @@ import thaumcraft.common.lib.crafting.ThaumcraftCraftingManager;
 import thaumcraft.common.lib.research.ResearchManager;
 import thaumcraft.common.lib.utils.InventoryUtils;
 import thaumcraft.common.tiles.TileInfusionMatrix;
-import travellersgear.api.TravellersGearAPI;
 import witchinggadgets.WitchingGadgets;
 import witchinggadgets.api.IPrimordialCrafting;
+import witchinggadgets.common.WGConfig;
 import witchinggadgets.common.WGContent;
+import witchinggadgets.common.items.ItemInfusedGem;
 import witchinggadgets.common.items.ItemMaterials;
+import witchinggadgets.common.items.baubles.ItemCloak;
+import witchinggadgets.common.items.baubles.ItemKama;
 import witchinggadgets.common.items.baubles.ItemMagicalBaubles;
 import witchinggadgets.common.items.tools.IPrimordialGear;
 import witchinggadgets.common.items.tools.ItemBag;
-import witchinggadgets.common.util.Lib;
+import witchinggadgets.common.magic.WGEnchantSoulbound;
 import witchinggadgets.common.util.Utilities;
 import witchinggadgets.common.util.network.message.MessageClientNotifier;
 import cpw.mods.fml.common.Loader;
@@ -76,21 +78,77 @@ public class EventHandler
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public void entityHurt(LivingHurtEvent event)
 	{
-		if(event.source.isFireDamage() && event.entityLiving.getActivePotionEffect(WGContent.pot_cinderCoat)!=null)
+		if (event.entityLiving instanceof EntityPlayer) { // PLAYER HURT
+			EntityPlayer player = (EntityPlayer) event.entityLiving;
+			IInventory ii = BaublesApi.getBaubles(player);
+			ItemStack amulet = ii.getStackInSlot(0);
+			ItemStack belt = ii.getStackInSlot(3);
+			ItemStack stack = player.getCurrentEquippedItem();
+
+			if ((amulet != null && amulet.getItem() instanceof ItemCloak && amulet.getItemDamage()==2) || (belt != null && belt.getItem() instanceof ItemKama && belt.getItemDamage()==2)) {
+				int amp = 1;
+				if (event.ammount >= 8)
+					amp++;
+				if (event.ammount >= 12)
+					amp++;
+				if (!amulet.hasTagCompound())
+					amulet.setTagCompound(new NBTTagCompound());
+					amulet.getTagCompound().setInteger("wolfPotion", amp);
+			} else if (stack != null && (stack.getItem().equals(WGContent.ItemPrimordialAxe) || stack.getItem().equals(WGContent.ItemPrimordialHammer) || stack.getItem().equals(WGContent.ItemPrimordialSword ))) {
+				if (player.isBlocking()) {
+					if (stack.hasTagCompound() && stack.getTagCompound().getInteger("currentMode") == 1) {
+						int time = event.entityLiving.getActivePotionEffect(Potion.resistance) != null ? event.entityLiving.getActivePotionEffect(Potion.resistance).getDuration() : 0;
+						time = Math.min(time + 30, 80);
+						int amp = event.entityLiving.getActivePotionEffect(Potion.resistance) != null ? event.entityLiving.getActivePotionEffect(Potion.resistance).getAmplifier() : -1;
+						amp = Math.min(amp + 1, 2);
+						event.entityLiving.addPotionEffect(new PotionEffect(Potion.resistance.id, time, amp));
+						event.entityLiving.addPotionEffect(new PotionEffect(WGContent.pot_knockbackRes.id, time, amp));
+					}
+				}
+			}
+		}
+
+		if(event.source.isFireDamage() && event.entityLiving.getActivePotionEffect(WGContent.pot_cinderCoat)!=null) // ENTITY ON FIRE
 			event.ammount *= 2+ event.entityLiving.getActivePotionEffect(WGContent.pot_cinderCoat).getAmplifier();
 
-		if(event.source.getSourceOfDamage() instanceof EntityPlayer && ((EntityPlayer)event.source.getSourceOfDamage()).getCurrentEquippedItem()!=null)
+		if(event.source.getSourceOfDamage() instanceof EntityPlayer && ((EntityPlayer)event.source.getSourceOfDamage()).getCurrentEquippedItem()!=null) // PLAYER IS DOING THE DAMAGING
 		{
 			EntityPlayer player = (EntityPlayer)event.source.getSourceOfDamage();
 			if(player.getCurrentEquippedItem().getItem().equals(WGContent.ItemPrimordialHammer) && (event.entityLiving instanceof EntitySlime || event.entityLiving.getClass().getName().endsWith("BlueSlime") || event.entityLiving.getCreatureAttribute()==EnumCreatureAttribute.ARTHROPOD) )
 				event.ammount *= 2;
-			if(player.getCurrentEquippedItem().getItem().equals(WGContent.ItemPrimordialAxe) && !event.source.isUnblockable())
+			else if(player.getCurrentEquippedItem().getItem().equals(WGContent.ItemPrimordialAxe) && !event.source.isUnblockable())
 			{
 				float mod = 1;
 				for(int i=1; i<=4; i++)
 					if(event.entityLiving.getEquipmentInSlot(i)!=null)
 						mod +=.5f;
 				event.ammount*=mod;
+			}
+			else if (player.getCurrentEquippedItem().getItem().equals(WGContent.ItemPrimordialGlove))
+			{
+				ItemStack stack = player.getCurrentEquippedItem();
+
+				if(stack != null && stack.hasTagCompound() && stack.getTagCompound().hasKey("selected")){
+					int sel = stack.getTagCompound().getInteger("selected");
+					NBTTagList list = stack.getTagCompound().getTagList("gems", 10);
+					NBTTagCompound tag = list.getCompoundTagAt(sel);
+					int slot = tag.getByte("Slot") & 0xFF;
+					ItemStack gem = ItemStack.loadItemStackFromNBT(tag);
+
+					if (gem != null && gem.hasTagCompound() && gem.getTagCompound().hasKey("Aspect") && gem.getTagCompound().hasKey("GemCut")) {
+						Aspect gemasp = Aspect.getAspect(gem.getTagCompound().getString("Aspect"));
+						ItemInfusedGem.GemCut gemcut = ItemInfusedGem.GemCut.getValue(gem.getTagCompound().getByte("GemCut"));
+
+						if (gemasp != null) {
+							if (gemcut == ItemInfusedGem.GemCut.POINT) {
+								if (gemasp.equals(Aspect.FIRE) && !event.entityLiving.isImmuneToFire()) {
+									event.entityLiving.setFire(1);
+								}
+							}
+						}
+					}
+
+				}
 			}
 
 			if(EnchantmentHelper.getEnchantmentLevel(WGContent.enc_backstab.effectId,player.getCurrentEquippedItem())>0 )
@@ -109,12 +167,25 @@ public class EventHandler
 	}
 
 	@SubscribeEvent
-	public void onLivingSetTarget(LivingSetAttackTargetEvent event)
-	{
+	public void onLivingSetTarget(LivingSetAttackTargetEvent event) {
+		if(event.target instanceof EntityPlayer && event.entityLiving instanceof EntityCreature) {
+			EntityPlayer ep = (EntityPlayer) event.target;
+			IInventory ii = BaublesApi.getBaubles(ep);
+			ItemStack amulet = ii.getStackInSlot(0);
+			ItemStack belt = ii.getStackInSlot(3);
+
+			if ((amulet != null && amulet.getItem() instanceof ItemCloak && amulet.getItemDamage()==1) || (belt != null && belt.getItem() instanceof ItemCloak && belt.getItemDamage()==1) ) {
+				boolean goggles = event.entityLiving.getEquipmentInSlot(4)!=null && (event.entityLiving.getEquipmentInSlot(4).getItem() instanceof IRevealer || event.entityLiving.getEquipmentInSlot(4).getItem() instanceof IGoggles);
+				if (!goggles)
+					Utilities.setAttackTarget((EntityCreature)event.entityLiving, null);
+			}
+		}
+
+
 		if (!(event.target instanceof EntityPlayer))
 			return;
-		if(event.entityLiving instanceof EntityCreature)
-		{
+
+		if(event.entityLiving instanceof EntityCreature) {
 			EntityPlayer player = (EntityPlayer) event.target;
 			if(player.isSneaking())
 				if(EnchantmentHelper.getEnchantmentLevel(WGContent.enc_stealth.effectId,player.getCurrentArmor(0))>0 || EnchantmentHelper.getEnchantmentLevel(WGContent.enc_stealth.effectId,player.getCurrentArmor(1))>0)
@@ -126,8 +197,7 @@ public class EventHandler
 						chance-=.1f;
 					if(player.getRNG().nextFloat()<chance)
 						Utilities.setAttackTarget((EntityCreature)event.entityLiving, null);
-					else
-					{
+					else {
 						for(EntityCreature e : (List<EntityCreature>)player.worldObj.getEntitiesWithinAABB(EntityCreature.class, AxisAlignedBB.getBoundingBox(player.posX-5,player.posY-5,player.posZ-5, player.posX+5,player.posY+5,player.posZ+5)))
 							if(e!=null && !(e instanceof IBossDisplayData) && player.equals(e.getAttackTarget()))
 								Utilities.setAttackTarget((EntityCreature)event.entityLiving, null);
@@ -137,50 +207,53 @@ public class EventHandler
 	}
 	
 	@SubscribeEvent
-	public void onPlayerInteract(PlayerInteractEvent event)
-	{
+	public void onPlayerInteract(PlayerInteractEvent event) {
 		for(ItemStack cloak : Utilities.getActiveMagicalCloak(event.entityPlayer))
-			if(cloak!=null && cloak.hasTagCompound() && cloak.getTagCompound().getBoolean("isSpectral"))
+			if(cloak!=null && cloak.getItemDamage() == 1)
 				event.setCanceled(true);
 		if(Loader.isModLoaded("ForgeMultipart"))
 			WGMultiPartHandler.handleWorldInteraction(event);
 	}
 	@SubscribeEvent
-	public void onPlayerInteractWithEntity(EntityInteractEvent event)
-	{
+	public void onPlayerInteractWithEntity(EntityInteractEvent event) {
 		for(ItemStack cloak : Utilities.getActiveMagicalCloak(event.entityPlayer))
-			if(cloak!=null && cloak.hasTagCompound() && cloak.getTagCompound().getBoolean("isSpectral"))
-				event.setCanceled(true);
-	}
-	@SubscribeEvent
-	public void onPlayerAttackEntity(AttackEntityEvent event)
-	{
-		for(ItemStack cloak : Utilities.getActiveMagicalCloak(event.entityPlayer))
-			if(cloak!=null && cloak.hasTagCompound() && cloak.getTagCompound().getBoolean("isSpectral"))
+			if(cloak!=null && cloak.getItemDamage() == 1)
 				event.setCanceled(true);
 	}
 
 	@SubscribeEvent
-	public void onPlayerBreaking(PlayerEvent.BreakSpeed event)
-	{
-		if(TravellersGearAPI.getExtendedInventory(event.entityPlayer)[2]!=null && TravellersGearAPI.getExtendedInventory(event.entityPlayer)[2].getItem() instanceof ItemMagicalBaubles && TravellersGearAPI.getExtendedInventory(event.entityPlayer)[2].getItemDamage()==3)
+	public void onPlayerAttackEntity(AttackEntityEvent event) {
+		for(ItemStack cloak : Utilities.getActiveMagicalCloak(event.entityPlayer))
+			if(cloak!=null && cloak.getItemDamage() == 1)
+				event.setCanceled(true);
+	}
+
+	@SubscribeEvent
+	public void onPlayerBreaking(PlayerEvent.BreakSpeed event) {
+		IInventory baubles = BaublesApi.getBaubles(event.entityPlayer);
+
+		if((baubles.getStackInSlot(1) != null && baubles.getStackInSlot(1).getItem() instanceof ItemMagicalBaubles &&  baubles.getStackInSlot(1).getItemDamage()==3) || ( baubles.getStackInSlot(2) != null && baubles.getStackInSlot(2).getItem() instanceof ItemMagicalBaubles &&  baubles.getStackInSlot(2).getItemDamage()==3))
 		{
 			Block block = event.entityPlayer.worldObj.getBlock(event.x,event.y,event.z);
-			if(!event.entityPlayer.onGround)
+			float hardness = block.getBlockHardness(event.entityPlayer.worldObj, event.x,event.y,event.z);
+
+			if (hardness > 0)
+				event.newSpeed = event.originalSpeed * (1.05f + hardness / 25.0f);
+
+			/* if(!event.entityPlayer.onGround)
 				event.newSpeed *= 5.0F;
 			if(event.entityPlayer.isInsideOfMaterial(Material.water) && !EnchantmentHelper.getAquaAffinityModifier(event.entityPlayer))
 				event.newSpeed *= 5.0F;
 
 			float hardness = block.getBlockHardness(event.entityPlayer.worldObj, event.x,event.y,event.z);
-			if(hardness>20)
-				event.newSpeed = 5+hardness;
+			if(hardness> 20)
+				event.newSpeed = 5+hardness; */
 		}
 
 	}
 
 	@SubscribeEvent(priority=EventPriority.LOWEST)
-	public void onLivingDrop(LivingDropsEvent event)
-	{
+	public void onLivingDrop(LivingDropsEvent event) {
 		if(event.entityLiving instanceof EntityWolf)
 		{
 			EntityWolf enemy = (EntityWolf) event.entityLiving;
@@ -192,12 +265,14 @@ public class EventHandler
 					event.drops.add(entityitem);
 				}
 		}
-		if(event.entityLiving instanceof EntityCultistCleric && event.entityLiving.worldObj.rand.nextInt(10)<1+event.lootingLevel)
+
+		/* if(event.entityLiving instanceof EntityCultistCleric && event.entityLiving.worldObj.rand.nextInt(10)<1+event.lootingLevel)
 			event.drops.add(new EntityItem(event.entityLiving.worldObj, event.entityLiving.posX, event.entityLiving.posY, event.entityLiving.posZ, ItemMagicalBaubles.getItemWithTitle(new ItemStack(WGContent.ItemMagicalBaubles,1,4),Lib.TITLE+"crimsonCultist")));
 		if(event.entityLiving instanceof EntityCultistKnight && event.entityLiving.worldObj.rand.nextInt(10)<1+event.lootingLevel)
 			event.drops.add(new EntityItem(event.entityLiving.worldObj, event.entityLiving.posX, event.entityLiving.posY, event.entityLiving.posZ, ItemMagicalBaubles.getItemWithTitle(new ItemStack(WGContent.ItemMagicalBaubles,1,4),Lib.TITLE+"crimsonKnight")));
 		if(event.entityLiving instanceof EntityCultistLeader && event.entityLiving.worldObj.rand.nextInt(2)==0)
 			event.drops.add(new EntityItem(event.entityLiving.worldObj, event.entityLiving.posX, event.entityLiving.posY, event.entityLiving.posZ, ItemMagicalBaubles.getItemWithTitle(new ItemStack(WGContent.ItemMagicalBaubles,1,4),Lib.TITLE+"crimsonPraetor")));
+		*/
 
 		if(event.recentlyHit && event.source!=null && event.source.getSourceOfDamage() instanceof EntityPlayer)
 		{
@@ -312,6 +387,7 @@ public class EventHandler
 				else if(event.entityPlayer.inventory.getStackInSlot(i).getItemDamage()==3)
 				{
 					ItemStack[] inv = ((ItemBag)event.entityPlayer.inventory.getStackInSlot(i).getItem()).getStoredItems(event.entityPlayer.inventory.getStackInSlot(i));
+					boolean itemWasPickedUp = false;
 					for(int f=0; f<inv.length; f++)
 					{
 						if(inv[f]==null)
@@ -319,6 +395,7 @@ public class EventHandler
 							inv[f] = event.item.getEntityItem().copy();
 							event.item.setDead();
 							event.setCanceled(true);
+							itemWasPickedUp = true;
 							break;
 						}
 						else if(OreDictionary.itemMatches(inv[f], event.item.getEntityItem(), true))
@@ -330,11 +407,16 @@ public class EventHandler
 							{
 								event.item.setDead();
 								event.setCanceled(true);
+								itemWasPickedUp = true;
 								break;
 							}
 						}
 					}
 					((ItemBag)event.entityPlayer.inventory.getStackInSlot(i).getItem()).setStoredItems(event.entityPlayer.inventory.getStackInSlot(i), inv);
+					if (itemWasPickedUp)
+					{
+								break;
+					}
 				}
 			}
 	}
@@ -365,7 +447,7 @@ public class EventHandler
 				}
 			}
 		}
-		if(output.getItem() instanceof IPrimordialCrafting && !event.player.worldObj.isRemote && (!output.hasTagCompound()||!output.getTagCompound().getBoolean("wasCrafted")))
+		if(output.getItem() instanceof IPrimordialCrafting && !event.player.worldObj.isRemote && (!output.hasTagCompound()))//||!output.getTagCompound().getBoolean("wasCrafted")))
 		{
 			if(((IPrimordialCrafting)output.getItem()).getReturnedPearls(output)>0)
 			{
@@ -396,5 +478,121 @@ public class EventHandler
 	{
 		WitchingGadgets.packetHandler.sendTo(new MessageClientNotifier(0), (EntityPlayerMP) event.player);
 		//WGPacketPipeline.INSTANCE.sendTo(new PacketClientNotifier(0), (EntityPlayerMP) event.player);
+	}
+
+	//TODO SOULBOUND
+	/*
+	 * This is called the moment the player dies and drops his stuff.
+	 *
+	 * We go early, so we can get our items before other mods put them into some
+	 * grave. Also remove them from the list so they won't get duped. If the
+	 * inventory overflows, e.g. because everything there and the armor is
+	 * soulbound, let the remainder be dropped/graved.
+	 */
+	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	public void onPlayerDeath(PlayerDropsEvent evt) {
+		if (evt.entityPlayer == null || evt.entityPlayer instanceof FakePlayer || evt.isCanceled()) {
+			return;
+		}
+		if(evt.entityPlayer.worldObj.getGameRules().getGameRuleBooleanValue("keepInventory")) {
+			return;
+		}
+
+		ListIterator<EntityItem> iter = evt.drops.listIterator();
+		while (iter.hasNext()) {
+			EntityItem ei = iter.next();
+			ItemStack item = ei.getEntityItem();
+			if(isSoulBound(item)) {
+				if (addToPlayerInventory(evt.entityPlayer, item)) {
+					iter.remove();
+				}
+			}
+		}
+
+		// Note: Baubles will also add its items to evt.drops, but later. We cannot
+		// wait for that because gravestone mods also listen to this event. So we have
+		// to fetch Baubles items ourselves here.
+		// For the same reason we cannot put the items into Baubles slots.
+
+		if (WGConfig.soulboundBaubles) {
+			IInventory baubles = BaublesUtil.instance().getBaubles(evt.entityPlayer);
+			if (baubles != null) {
+				for (int i = 0; i < baubles.getSizeInventory(); i++) {
+					ItemStack item = baubles.getStackInSlot(i);
+					if(isSoulBound(item)) {
+						if (addToPlayerInventory(evt.entityPlayer, item)) {
+							baubles.setInventorySlotContents(i, null);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/*
+	 * This is called when the user presses the "respawn" button. The original
+	 * inventory would be empty, but onPlayerDeath() above placed items in it.
+	 *
+	 * Note: Without other death-modifying mods, the content of the old inventory
+	 * would always fit into the new one (both being empty but for soulbound items
+	 * in the old one) and the old one would be discarded just after this method.
+	 * But better play it safe and assume that an overflow is possible and that
+	 * another mod may move stuff out of the old inventory, too.
+	 */
+	@SubscribeEvent
+	public void onPlayerClone(PlayerEvent.Clone evt) {
+		if (!evt.wasDeath || evt.isCanceled()) {
+			return;
+		}
+		if(evt.original == null || evt.entityPlayer == null || evt.entityPlayer instanceof FakePlayer) {
+			return;
+		}
+		if(evt.entityPlayer.worldObj.getGameRules().getGameRuleBooleanValue("keepInventory")) {
+			return;
+		}
+		for (int i = 0; i < evt.original.inventory.mainInventory.length; i++) {
+			ItemStack item = evt.original.inventory.mainInventory[i];
+			if(isSoulBound(item)) {
+				if (addToPlayerInventory(evt.entityPlayer, item)) {
+					evt.original.inventory.mainInventory[i] = null;
+				}
+			}
+		}
+		for (int i = 0; i < evt.original.inventory.armorInventory.length; i++) {
+			ItemStack item = evt.original.inventory.armorInventory[i];
+			if(isSoulBound(item)) {
+				if (addToPlayerInventory(evt.entityPlayer, item)) {
+					evt.original.inventory.armorInventory[i] = null;
+				}
+			}
+		}
+	}
+
+	private boolean isSoulBound(ItemStack item) {
+		return EnchantmentHelper.getEnchantmentLevel(WGEnchantSoulbound.id, item) > 0;
+	}
+
+	private boolean addToPlayerInventory(EntityPlayer entityPlayer, ItemStack item) {
+		if(item == null || entityPlayer == null) {
+			return false;
+		}
+		if(item.getItem() instanceof ItemArmor) {
+			ItemArmor arm = (ItemArmor) item.getItem();
+			int index = 3 - arm.armorType;
+			if(entityPlayer.inventory.armorItemInSlot(index) == null) {
+				entityPlayer.inventory.armorInventory[index] = item;
+				return true;
+			}
+		}
+
+		InventoryPlayer inv = entityPlayer.inventory;
+		for (int i = 0; i < inv.mainInventory.length; i++) {
+			if(inv.mainInventory[i] == null) {
+				inv.mainInventory[i] = item.copy();
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

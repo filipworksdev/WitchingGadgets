@@ -1,9 +1,8 @@
 ![Logo](https://raw.githubusercontent.com/BluSunrize/WitchingGadgets/master/src/main/resources/assets/witchinggadgets/logo.png)
 ==============
 
-Thaumcraft Addon for those that still crave more content 
+Thaumcraft Addon for those that still crave more content
 
-Basically just more stuff to add to Thaumcraft. I've been working on this since 1.6.4, finally feel comfortable with doing a beta release ^^
-Warning: This is built with a TC beta version not available to the public yet. So even if you download and compile, you probably wont be able to run it.
+This is an unofficial build of Witching Gadgets that does not use Travelers Gear. Weapons and items that used to use Traveller's Gear activation know now use `Shift+Right Click` instead. Also adds a number of other things such as Frost Extruder, Scarecrow Golem, Magic Forest Focus...
 
-
+For more information see the [CHANGELOG](CHANGELOG.md)

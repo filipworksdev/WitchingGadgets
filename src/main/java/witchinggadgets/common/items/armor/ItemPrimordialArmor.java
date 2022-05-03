@@ -13,25 +13,17 @@ import net.minecraft.entity.projectile.EntityThrowable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.potion.Potion;
-import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.World;
 import net.minecraftforge.common.ISpecialArmor;
-import net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent;
-import net.minecraftforge.event.entity.living.LivingFallEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.common.Thaumcraft;
 import thaumcraft.common.config.Config;
 import thaumcraft.common.items.armor.Hover;
 import thaumcraft.common.items.armor.ItemFortressArmor;
-import travellersgear.api.IActiveAbility;
-import travellersgear.api.IEventGear;
 import witchinggadgets.WitchingGadgets;
 import witchinggadgets.api.IPrimordialCrafting;
 import witchinggadgets.client.render.ModelPrimordialArmor;
@@ -40,7 +32,7 @@ import witchinggadgets.common.util.Utilities;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbility, IPrimordialCrafting, IEventGear, IPrimordialGear
+public class ItemPrimordialArmor extends ItemFortressArmor implements IPrimordialCrafting, IPrimordialGear
 {
 	IIcon rune;
 
@@ -102,62 +94,62 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 
 		switch(getAbility(stack))
 		{
-		case 0:
-			//Thanks WayOfFlowingTime =P
-			AxisAlignedBB aabb = AxisAlignedBB.getBoundingBox(player.posX-.5,player.posY-.5,player.posZ-.5, player.posX+.5,player.posY+.5,player.posZ+.5).expand(4,4,4);
-			for(Entity projectile : (List<Entity>)world.getEntitiesWithinAABB(Entity.class, aabb))
-			{
-				if(projectile==null)
-					continue;
-				if(!(projectile instanceof IProjectile) || projectile.getClass().getSimpleName().equalsIgnoreCase("IManaBurst"))
-					continue;
-
-				Entity shooter = null;
-				if(projectile instanceof EntityArrow)
-					shooter = ((EntityArrow) projectile).shootingEntity;
-				else if(projectile instanceof EntityThrowable)
-					shooter = ((EntityThrowable) projectile).getThrower();
-
-				if(shooter!=null && shooter.equals(player))
-					continue;
-
-				double delX = projectile.posX - player.posX;
-				double delY = projectile.posY - player.posY;
-				double delZ = projectile.posZ - player.posZ;
-				
-				double angle = (delX*projectile.motionX + delY*projectile.motionY + delZ*projectile.motionZ)/ (Math.sqrt(delX * delX + delY * delY + delZ * delZ)*Math.sqrt(projectile.motionX*projectile.motionX + projectile.motionY* projectile.motionY + projectile.motionZ*projectile.motionZ));
-				angle = Math.acos(angle);
-				if(angle < 3*(Math.PI/4)) //angle is < 135 degrees
-					continue;
-				
-				if(shooter != null)
+			case 0:
+				//Thanks WayOfFlowingTime =P
+				AxisAlignedBB aabb = AxisAlignedBB.getBoundingBox(player.posX-.5,player.posY-.5,player.posZ-.5, player.posX+.5,player.posY+.5,player.posZ+.5).expand(4,4,4);
+				for(Entity projectile : (List<Entity>)world.getEntitiesWithinAABB(Entity.class, aabb))
 				{
-					delX = -projectile.posX + shooter.posX;
-					delY = -projectile.posY + (shooter.posY + shooter.getEyeHeight());
-					delZ = -projectile.posZ + shooter.posZ;
+					if(projectile==null)
+						continue;
+					if(!(projectile instanceof IProjectile) || projectile.getClass().getSimpleName().equalsIgnoreCase("IManaBurst"))
+						continue;
+
+					Entity shooter = null;
+					if(projectile instanceof EntityArrow)
+						shooter = ((EntityArrow) projectile).shootingEntity;
+					else if(projectile instanceof EntityThrowable)
+						shooter = ((EntityThrowable) projectile).getThrower();
+
+					if(shooter!=null && shooter.equals(player))
+						continue;
+
+					double delX = projectile.posX - player.posX;
+					double delY = projectile.posY - player.posY;
+					double delZ = projectile.posZ - player.posZ;
+
+					double angle = (delX*projectile.motionX + delY*projectile.motionY + delZ*projectile.motionZ)/ (Math.sqrt(delX * delX + delY * delY + delZ * delZ)*Math.sqrt(projectile.motionX*projectile.motionX + projectile.motionY* projectile.motionY + projectile.motionZ*projectile.motionZ));
+					angle = Math.acos(angle);
+					if(angle < 3*(Math.PI/4)) //angle is < 135 degrees
+						continue;
+
+					if(shooter != null)
+					{
+						delX = -projectile.posX + shooter.posX;
+						delY = -projectile.posY + (shooter.posY + shooter.getEyeHeight());
+						delZ = -projectile.posZ + shooter.posZ;
+					}
+
+
+					double curVel = Math.sqrt(delX * delX + delY * delY + delZ * delZ);
+					delX /= curVel;
+					delY /= curVel;
+					delZ /= curVel;
+					double newVel = Math.sqrt(projectile.motionX*projectile.motionX + projectile.motionY*projectile.motionY + projectile.motionZ*projectile.motionZ);
+					projectile.motionX = newVel * delX;
+					projectile.motionY = newVel * delY;
+					projectile.motionZ = newVel * delZ;
 				}
-				
-				
-				double curVel = Math.sqrt(delX * delX + delY * delY + delZ * delZ);
-				delX /= curVel;
-				delY /= curVel;
-				delZ /= curVel;
-				double newVel = Math.sqrt(projectile.motionX*projectile.motionX + projectile.motionY*projectile.motionY + projectile.motionZ*projectile.motionZ);
-				projectile.motionX = newVel * delX;
-				projectile.motionY = newVel * delY;
-				projectile.motionZ = newVel * delZ;
-			}
-			break;
-		case 3:
-			int[] curedPotions = {Potion.blindness.id,Potion.poison.id,Potion.wither.id,Potion.confusion.id,Config.potionTaintPoisonID};
-			for(int c : curedPotions)
-				if(world.isRemote)
-					player.removePotionEffectClient(c);
-				else
-					player.removePotionEffect(c);
-			break;
-		default:
-			break;
+				break;
+			case 3:
+				int[] curedPotions = {Potion.blindness.id,Potion.poison.id,Potion.wither.id,Potion.confusion.id,Config.potionTaintPoisonID};
+				for(int c : curedPotions)
+					if(world.isRemote)
+						player.removePotionEffectClient(c);
+					else
+						player.removePotionEffect(c);
+				break;
+			default:
+				break;
 		}
 	}
 	@Override
@@ -204,20 +196,20 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 		return new ISpecialArmor.ArmorProperties(priority, ratio, armor.getMaxDamage() + 1 - armor.getItemDamage());
 	}
 
-	@Override
+	/* @Override
 	public boolean canActivate(EntityPlayer player, ItemStack stack, boolean isInHand)
 	{
 		return true;
 		//		return getUpgrade(stack)!=null;
-	}
+	} */
 
-	@Override
+	/* @Override
 	public void activate(EntityPlayer player, ItemStack stack)
 	{
 		if(!player.worldObj.isRemote)
 			cycleAbilities(stack);
 		//		toggleActive(stack);
-	}
+	} */
 
 	//	public PrimordialArmorUpgrade getUpgrade(ItemStack stack)
 	//	{
@@ -240,6 +232,7 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 	//			stack.setTagCompound(new NBTTagCompound());
 	//		stack.getTagCompound().setBoolean("disabled", !stack.getTagCompound().getBoolean("disabled"));
 	//	}
+
 	@Override
 	public String getItemStackDisplayName(ItemStack stack)
 	{
@@ -305,6 +298,7 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 			cur=0;
 		stack.getTagCompound().setInteger("currentMode",cur);
 	}
+
 	@Override
 	public int getAbility(ItemStack stack)
 	{
@@ -314,35 +308,46 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 	}
 
 	@Override
+	public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player)
+	{
+		if (player.isSneaking() && !player.worldObj.isRemote)
+			cycleAbilities(stack);
+		else
+			player.setItemInUse(stack, this.getMaxItemUseDuration(stack));
+
+		return stack;
+	}
+
+	/* @Override
 	public void onUserDamaged(LivingHurtEvent event, ItemStack stack)
 	{
 		if(event.entityLiving instanceof EntityPlayer)
 		{
 			switch(getAbility(stack))
 			{
-			case 0:
-				if(event.source.isProjectile())
-					event.setCanceled(true);
-				break;
-			case 5:
-				if(event.source.getSourceOfDamage() instanceof EntityLivingBase)
-					if(event.entityLiving.getRNG().nextInt(4)==0)
-					{
-						((EntityLivingBase)event.source.getSourceOfDamage()).addPotionEffect(new PotionEffect(Potion.blindness.id,10,0));
-						((EntityLivingBase)event.source.getSourceOfDamage()).addPotionEffect(new PotionEffect(Potion.moveSlowdown.id,10,3));
-					}
-				break;
+				case 0:
+					if(event.source.isProjectile())
+						event.setCanceled(true);
+					break;
+				case 5:
+					if(event.source.getSourceOfDamage() instanceof EntityLivingBase)
+						if(event.entityLiving.getRNG().nextInt(4)==0)
+						{
+							((EntityLivingBase)event.source.getSourceOfDamage()).addPotionEffect(new PotionEffect(Potion.blindness.id,10,0));
+							((EntityLivingBase)event.source.getSourceOfDamage()).addPotionEffect(new PotionEffect(Potion.moveSlowdown.id,10,3));
+						}
+					break;
 				//			case FIRE:
 				//				//Nova?
 				//				break;
 				//			case ORDER:
 				//				//Something something Healing?
 				//				break;
-			default:
-				break;
+				default:
+					break;
 			}
 		}
-	}
+	} */
 
 	@Override
 	public boolean getIsRepairable(ItemStack stack1, ItemStack stack2)
@@ -350,22 +355,6 @@ public class ItemPrimordialArmor extends ItemFortressArmor implements IActiveAbi
 		return Utilities.compareToOreName(stack2, "ingotVoid");
 	}
 
-	@Override
-	public void onUserAttacking(AttackEntityEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserJump(LivingJumpEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserFall(LivingFallEvent event, ItemStack stack)
-	{
-	}
-	@Override
-	public void onUserTargeted(LivingSetAttackTargetEvent event, ItemStack stack)
-	{
-	}
 	//	public enum PrimordialArmorUpgrade
 	//	{
 	//		AIR(new AspectList().add(Aspect.AIR,32).add(Aspect.MOTION,32).add(Aspect.ARMOR,32), new ItemStack(ConfigItems.itemShard,1,0),new ItemStack(ConfigItems.itemWispEssence),new ItemStack(Items.arrow),new ItemStack(ConfigItems.itemWispEssence),new ItemStack(Items.arrow),new ItemStack(ConfigItems.itemWispEssence),new ItemStack(ConfigItems.itemShard,1,0),new ItemStack(ConfigItems.itemWispEssence),new ItemStack(Items.arrow),new ItemStack(ConfigItems.itemWispEssence),new ItemStack(Items.arrow),new ItemStack(ConfigItems.itemWispEssence)),

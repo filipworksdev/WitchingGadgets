@@ -12,57 +12,17 @@ import net.minecraftforge.common.util.ForgeDirection;
 import thaumcraft.client.fx.ParticleEngine;
 import thaumcraft.client.fx.particles.FXEssentiaTrail;
 import thaumcraft.client.fx.particles.FXWisp;
-import travellersgear.api.TravellersGearAPI;
 import witchinggadgets.asm.pouch.GuiPatchedFocusPouch;
 import witchinggadgets.client.fx.EntityFXSweat;
-import witchinggadgets.client.gui.GuiBag;
-import witchinggadgets.client.gui.GuiCloakBag;
-import witchinggadgets.client.gui.GuiCuttingTable;
-import witchinggadgets.client.gui.GuiLabelLibrary;
-import witchinggadgets.client.gui.GuiMagicalTileLock;
-import witchinggadgets.client.gui.GuiPrimordialGlove;
-import witchinggadgets.client.gui.GuiSpinningWheel;
-import witchinggadgets.client.gui.GuiVoidBag;
-import witchinggadgets.client.render.BlockRenderMetalDevice;
-import witchinggadgets.client.render.BlockRenderRoseVine;
-import witchinggadgets.client.render.BlockRenderStoneDevice;
-import witchinggadgets.client.render.BlockRenderWoodenDevice;
-import witchinggadgets.client.render.EntityRenderReforming;
-import witchinggadgets.client.render.ItemRenderCapsule;
-import witchinggadgets.client.render.ItemRenderMagicalBaubles;
-import witchinggadgets.client.render.ItemRenderMaterial;
-import witchinggadgets.client.render.ItemRenderPrimordialGauntlet;
-import witchinggadgets.client.render.ItemRenderScanCamera;
-import witchinggadgets.client.render.ItemRenderWallMirror;
-import witchinggadgets.client.render.TileRenderCobbleGen;
-import witchinggadgets.client.render.TileRenderCuttingTable;
-import witchinggadgets.client.render.TileRenderEssentiaPump;
-import witchinggadgets.client.render.TileRenderLabelLibrary;
-import witchinggadgets.client.render.TileRenderMagicalTileLock;
-import witchinggadgets.client.render.TileRenderSarcophagus;
-import witchinggadgets.client.render.TileRenderSaunaStove;
-import witchinggadgets.client.render.TileRenderSnowGen;
-import witchinggadgets.client.render.TileRenderSpinningWheel;
-import witchinggadgets.client.render.TileRenderTerraformFocus;
-import witchinggadgets.client.render.TileRenderTerraformer;
-import witchinggadgets.client.render.TileRenderWallMirror;
+import witchinggadgets.client.gui.*;
+import witchinggadgets.client.render.*;
 import witchinggadgets.common.CommonProxy;
+import witchinggadgets.common.WGConfig;
 import witchinggadgets.common.WGContent;
-import witchinggadgets.common.blocks.tiles.TileEntityCobbleGen;
-import witchinggadgets.common.blocks.tiles.TileEntityCuttingTable;
-import witchinggadgets.common.blocks.tiles.TileEntityEssentiaPump;
-import witchinggadgets.common.blocks.tiles.TileEntityLabelLibrary;
-import witchinggadgets.common.blocks.tiles.TileEntityMagicalTileLock;
-import witchinggadgets.common.blocks.tiles.TileEntitySarcophagus;
-import witchinggadgets.common.blocks.tiles.TileEntitySaunaStove;
-import witchinggadgets.common.blocks.tiles.TileEntitySnowGen;
-import witchinggadgets.common.blocks.tiles.TileEntitySpinningWheel;
-import witchinggadgets.common.blocks.tiles.TileEntityTerraformFocus;
-import witchinggadgets.common.blocks.tiles.TileEntityTerraformer;
-import witchinggadgets.common.blocks.tiles.TileEntityWallMirror;
+import witchinggadgets.common.blocks.tiles.*;
+import witchinggadgets.common.mob.EntityScarecrow;
 import witchinggadgets.common.items.EntityItemReforming;
 import witchinggadgets.common.util.WGKeyHandler;
-import baubles.api.BaublesApi;
 import cpw.mods.fml.client.FMLClientHandler;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.client.registry.RenderingRegistry;
@@ -102,7 +62,6 @@ public class ClientProxy extends CommonProxy
 		gemModel = ClientUtilities.bindModel("witchinggadgets","models/gems.obj");
 		terraformerModel = ClientUtilities.bindModel("witchinggadgets", "models/terraformer.obj");
 
-
 		MinecraftForgeClient.registerItemRenderer(Item.getItemFromBlock(WGContent.BlockWallMirror), new ItemRenderWallMirror());
 		MinecraftForgeClient.registerItemRenderer(WGContent.ItemMaterial, new ItemRenderMaterial());
 		MinecraftForgeClient.registerItemRenderer(WGContent.ItemScanCamera, new ItemRenderScanCamera());
@@ -112,7 +71,8 @@ public class ClientProxy extends CommonProxy
 		MinecraftForgeClient.registerItemRenderer(WGContent.ItemCapsule, new ItemRenderCapsule());
 
 		RenderingRegistry.registerEntityRenderingHandler(EntityItemReforming.class, new EntityRenderReforming());
-		//MinecraftForgeClient.registerItemRenderer(WGContent.BlockWoodenDevice.blockID, new ItemRenderSpinningWheel());
+
+		RenderingRegistry.registerEntityRenderingHandler(EntityScarecrow.class, new RenderScarecrow());
 	}
 
 	public void registerHandlers()
@@ -121,7 +81,9 @@ public class ClientProxy extends CommonProxy
 		FMLCommonHandler.instance().bus().register(new WGKeyHandler());
 		FMLCommonHandler.instance().bus().register(new ClientTickHandler());
 
-		ThaumonomiconIndexSearcher.init();
+		if (WGConfig.enableSearch) {
+			ThaumonomiconIndexSearcher.init();
+		}
 	}
 
 	@Override
@@ -131,8 +93,12 @@ public class ClientProxy extends CommonProxy
 		if(ID == 0)return new GuiSpinningWheel(player.inventory, (TileEntitySpinningWheel)tile);
 
 		if(ID == 3)return new GuiBag(player.inventory, world);
-		if(ID==4||ID==5)return new GuiCloakBag(player.inventory, world, ID==4?TravellersGearAPI.getExtendedInventory(player)[0]:BaublesApi.getBaubles(player).getStackInSlot(3) );
-		
+
+		//if(ID == 4 )return new GuiCloakBag(player.inventory, world, BaublesApi.getBaubles(player).getStackInSlot(0) );
+
+		//if(ID==4||ID==5)return new GuiCloakBag(player.inventory, world, ID==4?TravellersGearAPI.getExtendedInventory(player)[0]:BaublesApi.getBaubles(player).getStackInSlot(3) );
+		//if(ID==4||ID==5)return new GuiCloakBag(player.inventory, world, BaublesApi.getBaubles(player).getStackInSlot(3) );
+
 		if(ID == 6)return new GuiPatchedFocusPouch(player.inventory, world, x, y, z);
 
 		if(ID == 7)return new GuiPrimordialGlove(player.inventory, world, x, y, z);
@@ -154,6 +120,7 @@ public class ClientProxy extends CommonProxy
 		FXEssentiaTrail fx = new FXEssentiaTrail(worldObj, x + 0.5D, y + 1, z + 0.5D, tx + 0.5D, ty + 0.5D, tz + 0.5D, count, colour, scale);
 		ParticleEngine.instance.addEffect(worldObj, fx);
 	}
+
 	@Override
 	public void createTargetedWispFx(World worldObj, double x, double y, double z, double tx, double ty, double tz, int colour, float scale, float gravity, boolean tinkle, boolean noClip)
 	{
@@ -165,12 +132,14 @@ public class ClientProxy extends CommonProxy
 		fx.setGravity(0);
 		ParticleEngine.instance.addEffect(worldObj, fx);
 	}
+
 	@Override
 	public void createSweatFx(EntityPlayer player)
 	{
 		EntityFXSweat fx = new EntityFXSweat(player);
 		FMLClientHandler.instance().getClient().effectRenderer.addEffect(fx);
 	}
+
 	@Override
 	public void createFurnaceOutputBlobFx(World worldObj, int x, int y, int z, ForgeDirection facing)
 	{	
@@ -185,6 +154,7 @@ public class ClientProxy extends CommonProxy
 		fb.motionZ = (0.15f * mz);
 		FMLClientHandler.instance().getClient().effectRenderer.addEffect(fb);
 	}
+
 	@Override
 	public void createFurnaceDestructionBlobFx(World worldObj, int x, int y, int z)
 	{	
